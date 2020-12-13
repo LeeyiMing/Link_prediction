@@ -101,7 +101,7 @@ class Trainer(object):
         logits = torch.bmm(src_embedding.unsqueeze(1), dst_embedding.unsqueeze(-1)).squeeze(-1).reshape(-1)
 
         # print('logits', edges, src_embedding.shape, dst_embedding.shape, logits)
-
+        
         return logits
 
 
@@ -151,9 +151,6 @@ class Trainer(object):
 
             for step in range(num_train_batches):
 
-                logits_tmp = []
-                labels_tmp = []
-
                 if step != num_train_batches - 1:
                     batch_size = self.batch_size
                 else:
@@ -181,12 +178,13 @@ class Trainer(object):
                 node_embedding = self.model(input_nodes, blocks)
 
                 logits = self.compute_logits(node_embedding, batch_edges)
+                  
 
                 # collect outputs
-                # logits_tmp.append(logits)
-                # labels_tmp.append(batch_labels)
-
-                    # print('logits', logits.shape, batch_labels.shape)
+                pred = torch.sigmoid(logits) > 0.5
+                pred_temp=np.append(pred_temp, pred.long().detach().numpy())
+                label_temp=np.append(label_temp, batch_labels.cpu())
+                # print('logits', logits.shape, batch_labels.shape)
 
                 ###########################################
                 # update step
@@ -221,11 +219,19 @@ class Trainer(object):
             train_losses.append(train_average_loss)
             train_accuracies.append(train_accuracy)
 
+            # train precision, recall, F1 score
+            train_macro_precision = macro_precision(pred_temp, label_temp)
+            train_macro_recall = macro_recall(pred_temp, label_temp)
+            train_micro_f1 = micro_f1(pred_temp, label_temp)
+            train_macro_f1 = macro_f1(pred_temp, label_temp)
+
             ###########################################
             # validation
 
             val_num_correct = 0  # number of correct prediction in validation set
             val_total_losses = 0  # total cross entropy loss
+            pred_temp = np.array([])
+            label_temp = np.array([])
 
             self.model.eval()
             with torch.no_grad():
@@ -244,7 +250,10 @@ class Trainer(object):
                     node_embedding = self.model(input_nodes, blocks)
 
                     logits = self.compute_logits(node_embedding, batch_edges)
-
+ 
+                    pred = torch.sigmoid(logits) > 0.5
+                    pred_temp=np.append(pred_temp, pred.long().detach().numpy())
+                    label_temp=np.append(label_temp, batch_labels.detach().numpy())
                     # collect outputs
                     # logits_tmp.append(logits)
                     # labels_tmp.append(batch_labels)
@@ -273,20 +282,36 @@ class Trainer(object):
             val_losses.append(val_average_loss)
             val_accuracy = val_num_correct / num_val_batches
             val_accuracies.append(val_accuracy)
+
+            val_macro_precision = macro_precision(pred_temp, label_temp)
+            val_macro_recall = macro_recall(pred_temp, label_temp)
+            val_micro_f1 = micro_f1(pred_temp, label_temp)
+            val_macro_f1 = macro_f1(pred_temp, label_temp)
             
             if val_accuracy > best_val_acc:
-                best_val_result = (val_accuracy)
+                best_val_result = (val_accuracy, val_macro_precision, val_macro_recall, val_macro_f1, val_micro_f1)
                 best_val_acc = val_accuracy
                 # best_val_y = (pred_temp, label_temp)
                 torch.save(self.model.state_dict(), self.checkpoint_path)
 
             logging.info("Epoch {:05d} | Time(s) {:.4f} | \n"
-                "TrainLoss {:.4f} | TrainAcc {:.4f}\n"
-                "ValLoss {:.4f}   | ValAcc {:.4f}\n".
+                "TrainLoss {:.4f} | TrainAcc {:.4f} | TrainPrecision {:.4f} | TrainRecall {:.4f} | TrainMacroF1 {:.4f}\n"
+                "ValLoss {:.4f}   | ValAcc {:.4f}   | ValPrecision {:.4f}   | ValRecall {:.4f}   | ValMacroF1 {:.4f}".
                 format(e, np.mean(dur), 
-                       train_average_loss, train_accuracy,   
-                       val_average_loss, val_accuracy))
+                       train_average_loss, train_accuracy, train_macro_precision, train_macro_recall, train_macro_f1, 
+                       val_average_loss, val_accuracy, val_macro_precision, val_macro_recall, val_macro_f1))
         
+            ### Early stopping
+            self.early_stopping(val_accuracy, self.model)
+            if self.early_stopping.early_stop:
+                logging.info("Early stopping")
+                break
+
+        ### best validation result
+        logging.info(
+            'Best val result: ValAcc {:.4f}   | ValPrecision {:.4f}    | ValRecall {:.4f}   | ValMacroF1 {:.4f}\n'
+            .format(best_val_result[0], best_val_result[1], best_val_result[2], best_val_result[3]))
+
         ###########################################
         # testing
         test_losses = []  # per mini-batch
@@ -296,6 +321,9 @@ class Trainer(object):
 
         num_test_samples = len(self.test_loader)
         num_test_batches = (num_test_samples - 1) // self.batch_size + 1
+
+        pred_temp = np.array([])
+        label_temp = np.array([])
 
         self.model.eval()
         with torch.no_grad():
@@ -322,14 +350,22 @@ class Trainer(object):
                 test_num_correct += mini_batch_accuracy               
                 test_total_losses += val_loss.cpu().item()
 
-                    # print('val acc ', val_loss.cpu().item(), mini_batch_accuracy)
+                pred = torch.sigmoid(logits) > 0.5
+                pred_temp=np.append(pred_temp, pred.long().detach().numpy())
+                label_temp=np.append(label_temp, batch_labels.detach().numpy())
+                # print('val acc ', val_loss.cpu().item(), mini_batch_accuracy)
 
         test_average_loss = test_total_losses / num_test_batches
         test_accuracy = test_num_correct / num_test_batches
 
+        test_macro_precision = macro_precision(pred_temp, label_temp)
+        test_macro_recall = macro_recall(pred_temp, label_temp)
+        test_micro_f1 = micro_f1(pred_temp, label_temp)
+        test_macro_f1 = macro_f1(pred_temp, label_temp)
+
         logging.info("Finishing training...\n"
-                "TestLoss {:.4f} | TestAcc {:.4f}\n".
-                format(test_average_loss, test_accuracy))
+                "TestLoss {:.4f} | TestAcc {:.4f} | TestPrecision {:.4f} | TestRecall {:.4f} | TestMacroF1 {:.4f}\n".
+                format(test_average_loss, test_accuracy, test_macro_precision, test_macro_recall, test_macro_f1))
 
         self.plot(train_losses, val_losses, train_accuracies, val_accuracies)
 
