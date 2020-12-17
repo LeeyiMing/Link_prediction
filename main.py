@@ -17,6 +17,8 @@ from models import GTEALSTMT2V
 from models import GTEATrans
 from models import GTEATransT2V
 from models import TGAT
+from models import GCN
+from models import GAT
 
 from trainer import Trainer
 
@@ -87,7 +89,16 @@ def main(args):
 
 
     # create  model   
-    if args.model == 'GraphSAGE':
+
+    if args.model == 'GCN':
+
+        model = GCN(num_nodes=num_nodes,
+                        in_feats=node_in_dim, 
+                        n_hidden=args.node_hidden_dim, 
+                        n_layers=args.num_layers,
+                        activation=F.relu,
+                        dropout=args.dropout)
+    elif args.model == 'GraphSAGE':
 
         model = GraphSAGE(num_nodes=num_nodes,
                             in_feats=node_in_dim, 
@@ -95,6 +106,14 @@ def main(args):
                             n_layers=args.num_layers,
                             activation=F.relu,
                             dropout=args.dropout)
+    elif args.model == 'GAT':
+
+        model = GAT(num_nodes=num_nodes,                 
+                 in_dim=node_in_dim,
+                 hidden_dim=args.node_hidden_dim,
+                 num_layers=args.num_layers,
+                 num_heads=args.num_heads)
+
     elif args.model == 'TGAT':
         model = TGAT(num_nodes=num_nodes, 
                         node_in_dim=node_in_dim, 
