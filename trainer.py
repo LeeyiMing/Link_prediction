@@ -182,7 +182,7 @@ class Trainer(object):
 
                 # collect outputs
                 pred = torch.sigmoid(logits) > 0.5
-                pred_temp=np.append(pred_temp, pred.long().detach().numpy())
+                pred_temp=np.append(pred_temp, pred.long().cpu().detach().numpy())
                 label_temp=np.append(label_temp, batch_labels.cpu())
                 # print('logits', logits.shape, batch_labels.shape)
 
@@ -252,8 +252,8 @@ class Trainer(object):
                     logits = self.compute_logits(node_embedding, batch_edges)
  
                     pred = torch.sigmoid(logits) > 0.5
-                    pred_temp=np.append(pred_temp, pred.long().detach().numpy())
-                    label_temp=np.append(label_temp, batch_labels.detach().numpy())
+                    pred_temp=np.append(pred_temp, pred.long().cpu().detach().numpy())
+                    label_temp=np.append(label_temp, batch_labels.cpu())
                     # collect outputs
                     # logits_tmp.append(logits)
                     # labels_tmp.append(batch_labels)
@@ -348,11 +348,11 @@ class Trainer(object):
                 mini_batch_accuracy = torch_accuracy(logits, batch_labels)
                 # val_num_correct += mini_batch_accuracy * batch_size 
                 test_num_correct += mini_batch_accuracy               
-                test_total_losses += val_loss.cpu().item()
+                test_total_losses += test_loss.cpu().item()
 
                 pred = torch.sigmoid(logits) > 0.5
-                pred_temp=np.append(pred_temp, pred.long().detach().numpy())
-                label_temp=np.append(label_temp, batch_labels.detach().numpy())
+                pred_temp=np.append(pred_temp, pred.long().cpu().detach().numpy())
+                label_temp=np.append(label_temp, batch_labels.cpu())
                 # print('val acc ', val_loss.cpu().item(), mini_batch_accuracy)
 
         test_average_loss = test_total_losses / num_test_batches
