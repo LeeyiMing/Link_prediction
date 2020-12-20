@@ -6,3 +6,6 @@ from .GTEA_Trans_T2V import GTEATransT2V
 from .TGAT import TGAT
 from .GAT import GAT
 from .GCN import GCN
+from .ECConv import ECConv
+from .EGNN import EGNN
+from .GTEA_ST import GTEAST

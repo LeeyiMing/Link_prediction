@@ -79,12 +79,13 @@ class GraphGenerator():
 # logging.basicConfig(level=logging.INFO)
 
 class Dataset(object):
-    def __init__(self, data_dir, batch_size):
+    def __init__(self, data_dir, batch_size, use_static=False):
 
         self.dgl_pickle_path = os.path.join(data_dir, 'graph.pkl')
         self.labels_pickle_path = os.path.join(data_dir, 'labels.pkl')
         self.feature_path = os.path.join(data_dir, 'features.npz')
-        self.static_edge_feature_path = os.path.join(data_dir, 'static_edge_features.npy')
+        # self.static_edge_feature_path = os.path.join(data_dir, 'static_edge_features.npy')
+        self.use_static = use_static
 
         self.batch_size = batch_size
 
@@ -117,8 +118,24 @@ class Dataset(object):
         self.num_edges = self.g.number_of_edges()
         
         self.num_classes = len(np.unique(self.train_labels))
-        self.edge_in_dim = self.g.edata['edge_features'].shape[-1] + 1
-        self.edge_timestep_len = self.g.edata['edge_features'].shape[1]
+
+        if self.use_static:
+
+            static_edge_features = self.g.edata['edge_features']
+            edge_len = self.g.edata['edge_len']
+            static_edge_features = torch.sum(static_edge_features, 1) / edge_len.reshape(-1, 1)
+
+            self.edge_in_dim = static_edge_features.shape[-1]
+            self.g.edata['static_edge_features'] = static_edge_features
+            del self.g.edata['edge_features']
+            self.edge_timestep_len = 0
+
+            # print(self.g.edata)
+            
+        else:
+
+            self.edge_in_dim = self.g.edata['edge_features'].shape[-1] + 1
+            self.edge_timestep_len = self.g.edata['edge_features'].shape[1]
         
 
         # num_pos_labels = 0.1 * self.g.number_of_edges()

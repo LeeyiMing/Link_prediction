@@ -19,6 +19,9 @@ from models import GTEATransT2V
 from models import TGAT
 from models import GCN
 from models import GAT
+from models import ECConv
+from models import EGNN
+from models import GTEAST
 
 from trainer import Trainer
 
@@ -38,14 +41,16 @@ def main(args):
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
 
     logging.info(args)
-
-
     # load data
-    data = Dataset(data_dir=args.data_dir, batch_size=args.batch_size)
+    if args.model in ['EGNN', 'ECConv', 'GTEA-ST']:
+        data = Dataset(data_dir=args.data_dir, batch_size=args.batch_size, use_static=True)
+    else:
+        data = Dataset(data_dir=args.data_dir, batch_size=args.batch_size)
+
+    
+    
 
     g = data.g
-
-    # print(g.ndata)
 
     # features = torch.FloatTensor(data.features)
     # labels = torch.LongTensor(data.labels)
@@ -113,6 +118,30 @@ def main(args):
                  hidden_dim=args.node_hidden_dim,
                  num_layers=args.num_layers,
                  num_heads=args.num_heads)
+    elif args.model == 'ECConv':
+        model = ECConv(num_nodes=num_nodes,                 
+                 node_in_dim=node_in_dim,
+                 edge_in_dim=edge_in_dim,
+                 hidden_dim=args.node_hidden_dim,
+                 num_layers=args.num_layers,
+                 drop_prob=args.dropout,
+                 device=device)
+    elif args.model == 'EGNN':
+        model = EGNN(num_nodes=num_nodes,                 
+                 node_in_dim=node_in_dim,
+                 edge_in_dim=edge_in_dim,
+                 hidden_dim=args.node_hidden_dim,
+                 num_layers=args.num_layers,
+                 drop_prob=args.dropout,
+                 device=device)
+    elif args.model == 'GTEA-ST':
+        model = GTEAST(num_nodes=num_nodes,                 
+                 node_in_dim=node_in_dim,
+                 edge_in_dim=edge_in_dim,
+                 node_hidden_dim=args.node_hidden_dim,
+                 num_layers=args.num_layers,
+                 drop_prob=args.dropout,
+                 device=device)
 
     elif args.model == 'TGAT':
         model = TGAT(num_nodes=num_nodes, 
