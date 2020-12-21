@@ -369,7 +369,7 @@ class Trainer(object):
 
         self.plot(train_losses, val_losses, train_accuracies, val_accuracies)
 
-        return best_val_result
+        return best_val_result, (test_average_loss, test_accuracy, test_macro_precision, test_macro_recall, test_macro_f1)
 
 
     def plot(self, train_losses, val_losses, train_accuracies, val_accuracies):

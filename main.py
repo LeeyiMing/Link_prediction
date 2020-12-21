@@ -28,8 +28,8 @@ from trainer import Trainer
 from data.data_loader import Dataset
 
 def main(args):
-
-    log_path = os.path.join(args.log_dir, args.model + time.strftime("_%m_%d_%H_%M_%S", time.localtime()) )
+    start_time_str = time.strftime("_%m_%d_%H_%M_%S", time.localtime())
+    log_path = os.path.join(args.log_dir, args.model + start_time_str)
     if not os.path.exists(log_path):
         os.mkdir(log_path)
 
@@ -229,9 +229,16 @@ def main(args):
                      checkpoint_path=checkpoint_path)
 
     logging.info('Start training')
-    trainer.train()
 
-    
+    best_val_result, test_result = trainer.train()
+
+    # recording the result
+    line = [start_time_str[1:]] + [args.model] + ['K=' + str(args.use_K)] + \
+    [str(x) for x in best_val_result] + [str(x) for x in test_result] + [str(args)]
+    line = ','.join(line) + '\n'
+
+    with open(os.path.join(args.log_dir, str(args.model) + '_result.csv'), 'a') as f:
+        f.write(line)
 
 
 if __name__ == '__main__':
